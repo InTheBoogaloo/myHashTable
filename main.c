@@ -8,6 +8,8 @@
 typedef struct Bucket{
 	bool value_status; 
 	void* value;                                                       
+	char *key;
+	struct Bucket* next;
 }Bucket;
 
 struct Hashtable{
@@ -19,14 +21,17 @@ struct Hashtable{
 
 void imprimir_chunk(Bucket *b){
 	printf("%p: ", (void*)b);
-
+	printf("siguiente:%p ",b->next);
 	if(b->value_status){
 		printf("valor:%i ", *(int*)b->value);
 	} else {
 		printf("valor:NULL ");
 	}
+	printf("estado:%i ", b->value_status);
 
-	printf("estado:%i", b->value_status);
+
+
+	printf("clave: %s ", b->key);
 }
 
 
@@ -38,17 +43,18 @@ void imprimir(Hashtable *table){
 	}
 }
 
-int main(){
 
+int main(){
 	Hashtable *h=hashtable_create(sizeof(int), 10);
 	int x = 11;
-
 	hashtable_add(h, "ximena galindo mata", &x);
-	
 	printf("\n");
 	imprimir(h);
-	hashtable_add(h, "como estas?", &x);
+	int y=20;
+	hashtable_add(h, "ximena galindo mata", &y);
 	printf("\n");
+	hashtable_add(h, "ximena galindo mata", &x);
+
 	imprimir(h);
 	return 0;
 
@@ -63,6 +69,7 @@ Hashtable* hashtable_create(size_t elem_size, size_t capacity){
 		free(ht);
 		return NULL;
 	}
+	ht->chunk->next=NULL;
 	ht->capacity=capacity;
 	ht->size=0;
 	Bucket* aux=ht->chunk;
@@ -114,28 +121,60 @@ int hashtable_reserve(Hashtable *table, size_t size){
 }
 
 
+Bucket* bucket_reserve(size_t size, size_t str_len){
+	Bucket *b;
+	b=(Bucket*)malloc(sizeof(Bucket));
+	if(!b) return NULL;
+	b->value_status=0;
+	b->value=malloc(size);
+	if(!b->value){
+		free(b);
+		return NULL;
+	}
+	b->key=(char*)malloc(str_len);
+	if(!b->key){
+		free(b);
+		return NULL;
+	}
+	b->next=NULL;
+	return b;
+}
+
+int collicion_handles(Bucket *b,const char *key, const void* value, size_t elem_size){
+	if(!b || !value) return -1;
+	Bucket *aux= b;
+	while(aux->value_status && aux->next){
+		aux=aux->next;
+	}
+	aux->next=bucket_reserve(elem_size, strlen(key));
+	memcpy(aux->value, value, elem_size); 
+	memcpy(aux->key, key, strlen(key)); 
+	aux->next->next=NULL;
+	aux->value_status=1;
+	return 0;
+}
+ 
 int hashtable_add(Hashtable *table, const char* key, const void* value){
 	if(!table || !table->chunk) return -1;
-	if(table->size >= table->capacity){
+	if(table->size >= table->capacity)
 		return 1;
-	}else{
+	else{
 		Bucket *aux=table->chunk;
 		unsigned int i = hash_function(key, table->capacity);
-		if(aux[i].value_status == 1) return -1;
+		if(aux[i].value_status == 1) {
+			collicion_handles(aux+i, key, value, table->elem_size);
+			return -1;
+		}
 		aux[i].value=malloc(table->elem_size);
 		aux[i].value_status=1;
 		memcpy(aux[i].value, value, table->elem_size);
+		aux[i].key=malloc(strlen(key));
+		if(!aux[i].key){
+			free(aux[i].value);
+			return -1;
+		} 
+		memcpy(aux[i].key, key, strlen(key));
 		table->size++;
 		return 0;
 	}
 }
-
-
-
-
-
-
-
-
-
-

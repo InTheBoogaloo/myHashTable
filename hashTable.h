@@ -14,4 +14,6 @@ int hashtable_remove(Hashtable *table, const char* key);
 void hashtable_destroy(Hashtable *table);
 
 int hastable_reserve(Hashtable *table, size_t size);
+
+
 #endif
